@@ -201,6 +201,16 @@ end
 # ╔═╡ a15c4b81-4015-4413-b9ad-a5158cbab7c4
 @time ripserer(Alpha(points), dim_max=1)
 
+# ╔═╡ 88e4def7-a942-46df-b26c-94d25b63294e
+md"""
+# TODO:
+* Implement DTM
+* Construct PDs from DTM, KDE, Dist
+* Read DTM-based filtrations
+  * https://github.com/raphaeltinarrage/DTM-Filtrations/blob/master/Demo.ipynb
+  * https://hal.science/hal-02093445/file/DTM-filtrations_SoCG.pdf
+"""
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -1692,5 +1702,6 @@ version = "1.4.1+1"
 # ╠═2d922813-f973-4f62-a350-bf1c7f9ecf6a
 # ╠═4d3ca62a-0789-4810-ae77-703328a54b13
 # ╠═a15c4b81-4015-4413-b9ad-a5158cbab7c4
+# ╠═88e4def7-a942-46df-b26c-94d25b63294e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
