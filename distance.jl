@@ -117,8 +117,21 @@ density_matrix = reshape(densities, 256, 256)
 # ╔═╡ f980bfbe-3a49-404d-9a26-fad8c7f60cfc
 surface(eval_x, eval_y, densities)
 
+# ╔═╡ 7499f253-3d3e-4629-8667-4419b79be1c6
+surface(eval_x, eval_y, densities)
+
 # ╔═╡ d2f9ba0b-efc0-4465-8b03-5ec05ee30d8b
 md"""# Task 3: Distance-To-Measure Function"""
+
+# ╔═╡ b62074e0-1fd6-4edf-9ff2-a3299bd2acee
+function distance_to_measure(X, queries, k, r)
+	tree = KDTree(X)
+	dtm_vals = map(eachcol(queries)) do query
+        distances, _ = knn(tree, query, k)
+        (sum(distances .^ r) / k)^(1 / r)
+    end
+	return dtm_vals
+end
 
 # ╔═╡ 613781b9-23ac-47b7-9e3d-f8f7a2a45470
 begin
@@ -126,16 +139,6 @@ begin
 	queries = rand(2, 5)
 	k = 10
 	r = 2.0
-end
-
-# ╔═╡ b62074e0-1fd6-4edf-9ff2-a3299bd2acee
-function distance_to_measure(X, evals, k, r)
-	tree = KDTree(X)
-	dtm_vals = map(eachcol(queries)) do query
-        distances, _ = knn(tree, query, k)
-        (sum(distances .^ r) / k)^(1 / r)
-    end
-	return dtm_vals
 end
 
 # ╔═╡ b3ac0f99-8728-4f00-9b15-7fcaef2638c5
@@ -146,6 +149,57 @@ dtm_vals = distance_to_measure(X, queries, k, r)
 
 # ╔═╡ 6a4159b1-030e-4dc1-a7b2-cb4df4724895
 scatter(X')
+
+# ╔═╡ f9770a26-5a63-49bc-b4c8-8157917cc3fd
+md"""
+---
+"""
+
+# ╔═╡ 7e572674-9d04-4151-893c-d2b77d9f3888
+md"""
+Your KDE looks something like:
+
+$$f_h(x) = \frac{1}{n} \sum_{i=1}^n K_h(x, x_i)$$
+
+where your data points are $x_1, x_2, \cdots, x_n$. And if you're dealing with the Gaussian kernel
+
+$$f_h(x) = \frac{1}{n} \sum_{i=1}^n \frac{1}{(2\pi h)^{d/2}} \exp(-\frac{1}{h}\|x - x_i\|^2)$$
+
+There's a class of kernels called **radial** kernels, where
+
+$$f_h(x) = \frac{1}{n} \sum_{i=1}^n K_h(\|x - x_i\|)$$
+
+If you choose 
+$$K_h(r) = \frac{1}{(2\pi h)^{d/2}}\exp(-\frac{r}{h})$$
+
+"""
+
+# ╔═╡ e0977e42-46f4-4d3d-a4b6-99d7aaca887f
+begin
+	points = [(x_points[i], y_points[i]) for i in eachindex(x_points)]
+	grid_points = [(eval_x[i], eval_y[i]) for i in eachindex(eval_x)]
+	Kh(r; h=1.0) = exp(-r^2/h)
+	# Gram matrix
+	kernel_matrix = pairwise(Euclidean(), grid_points, points) .|> (x -> Kh(x; h=0.5))
+	dens = reshape(mean(kernel_matrix, dims=2), (256, 256))
+	surface(dens)
+end
+
+# ╔═╡ 2d922813-f973-4f62-a350-bf1c7f9ecf6a
+begin
+	new_x = [(0.0, 0.0), (1.0,1.0)]
+	dist_matrix = pairwise(Euclidean(), grid_points, points)
+	dists = minimum(dist_matrix, dims=2)
+	dists = reshape(dists, (256, 256))
+	plotly()
+	surface(-dists, c=:cividis)
+end
+
+# ╔═╡ 4d3ca62a-0789-4810-ae77-703328a54b13
+@time ripserer(Cubical(dists), dim_max=1)
+
+# ╔═╡ a15c4b81-4015-4413-b9ad-a5158cbab7c4
+@time ripserer(Alpha(points), dim_max=1)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1625,11 +1679,18 @@ version = "1.4.1+1"
 # ╠═0f0b7330-bbaf-4035-9dbd-566b83b670d0
 # ╠═b60355dc-fcbe-40a8-9a01-d745c61211bc
 # ╠═f980bfbe-3a49-404d-9a26-fad8c7f60cfc
+# ╠═7499f253-3d3e-4629-8667-4419b79be1c6
 # ╠═d2f9ba0b-efc0-4465-8b03-5ec05ee30d8b
 # ╠═b62074e0-1fd6-4edf-9ff2-a3299bd2acee
 # ╠═613781b9-23ac-47b7-9e3d-f8f7a2a45470
 # ╠═b3ac0f99-8728-4f00-9b15-7fcaef2638c5
 # ╠═be8cd648-59dd-4738-af23-d30de89d292d
 # ╠═6a4159b1-030e-4dc1-a7b2-cb4df4724895
+# ╟─f9770a26-5a63-49bc-b4c8-8157917cc3fd
+# ╠═7e572674-9d04-4151-893c-d2b77d9f3888
+# ╠═e0977e42-46f4-4d3d-a4b6-99d7aaca887f
+# ╠═2d922813-f973-4f62-a350-bf1c7f9ecf6a
+# ╠═4d3ca62a-0789-4810-ae77-703328a54b13
+# ╠═a15c4b81-4015-4413-b9ad-a5158cbab7c4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
