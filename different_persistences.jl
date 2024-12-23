@@ -29,28 +29,48 @@ md""" ## Example with circle """
 begin
 	radius = 1.5
 	center = (2.0, 3.0)
-	angles = 2π * rand(100)
-	x_points = center[1] .+ radius * cos.(angles)
-	y_points = center[2] .+ radius * sin.(angles)
-	x_points = [x_points; rand(100) .* 4]
-	y_points = [y_points; rand(100) .* 4 .+ 1]
+	angles = 2π * rand(500)
+	circ_x_points = center[1] .+ radius * cos.(angles)
+	circ_y_points = center[2] .+ radius * sin.(angles)
+	x_points = [circ_x_points; rand(200) .* 4]
+	y_points = [circ_y_points; rand(200) .* 4 .+ 1]
 	scatter(x_points, y_points, aspect_ratio=1)
 end
 
 # ╔═╡ fd8f5a40-01fe-45c0-80cf-6402b3c024e0
 begin
+	s = 512
 	data_points = [x_points y_points]
-	x_grid = [x for x in range(0, 5, 256) for i in range(0, 5, 256)]
-	y_grid = [y for i in range(0, 5, 256) for y in range(0, 5, 256)]
+	x_grid = [x for x in range(0, 5, s) for i in range(0, 5, s)]
+	y_grid = [y for i in range(0, 5, s) for y in range(0, 5, s)]
 	grid_points = [x_grid y_grid]
 end
+
+# ╔═╡ 3de0e84f-d669-4f20-9c4d-55cf33ae4c3c
+circ_data_points = [circ_x_points circ_y_points]
 
 # ╔═╡ f4f873e4-17ab-4edb-8da7-ec8cab7e7098
 begin
 	@time nns = shortestDistances(grid_points', data_points')
-	nns = reshape(nns, 256, 256)
-	plotly()
+	nns = reshape(nns, s, s)
+	# plotly()
+	gr()
 	surface(nns)
+end
+
+# ╔═╡ f329f356-1700-45e4-b709-ebf18d1eb26a
+begin
+	@time circ_nns = shortestDistances(grid_points', circ_data_points')
+	circ_nns = reshape(circ_nns, s, s)
+	plotly()
+	#gr()
+	surface(circ_nns)
+end
+
+# ╔═╡ b5a203b2-ce98-4b26-b069-e4514dbb6c00
+begin
+	circ_pers = ripserer(Cubical(circ_nns, threshold=2))
+	plot(circ_pers)
 end
 
 # ╔═╡ 292b6a54-ef86-4d9c-9251-9b7903f91727
@@ -93,34 +113,32 @@ function multikde(data::Matrix{Float64}, points, kernel_func::Function, H::Union
 	return densities
 end
 
-# ╔═╡ 7f2b5105-068a-47f2-8bfd-c67cbcd45072
+# ╔═╡ 4086923a-75d3-4a96-b28c-e3701cf6db2d
 function gaussian_kernel(u)
     return exp(-0.5 * dot(u, u))
+end
+
+# ╔═╡ c132fe43-6fbf-4874-8222-87855313cb8e
+begin
+	#Kh(r; h) = exp(-r/h)
+	#kernel_matrix = pairwise(Euclidean(), grid_points', data_points') .|> (x -> Kh(x; h=0.3))
+	dens = multikde(data_points, grid_points, gaussian_kernel)
+	dens = reshape(dens, (s, s))
+	surface(dens)
 end
 
 # ╔═╡ b52f7118-3b25-40b9-bb06-ae11ae87eab9
 md""" ## Example with Circle"""
 
-# ╔═╡ 57726e0c-5423-4fc6-9c3d-bf2be51a94c6
-begin
-	@time dens = multikde(data_points, grid_points, gaussian_kernel)
-	dens = reshape(dens, 256, 256)
-	plotly()
-	surface(dens)
-end
-
 # ╔═╡ 7773e936-be5c-4d80-a53c-e119a89a7806
 md"""# Task 3: Efficient Distance-To-Measure"""
 
-# ╔═╡ 31c7ffe8-3917-44db-84af-d84ffdaa5c4d
-grid_points
-
 # ╔═╡ 1e8e7084-cf33-4290-b6e8-9952a5d10a87
-function dtm(eval_points, base_points, nn)
+function dtm(eval_points, base_points, nn, r)
 	dist_mat = pairwise(Euclidean(), eval_points', base_points')
 	small = sortperm(dist_mat, dims=1)[1:nn, :]
-	vals = dist_mat[small]
-	return sum(vals, dims=1) / nn
+	vals = dist_mat[small] .^ r
+	return mean(vals, dims=1) .^ (1 / r)
 end
 
 # ╔═╡ db92f8e3-524f-4f08-b051-9b03e74e5046
@@ -128,9 +146,8 @@ md"""## Example with Circle"""
 
 # ╔═╡ 96074f04-fd92-45b0-a8d4-ca1361219e3e
 begin
-	@time best_dtms = dtm(data_points, grid_points, 50)
-	best_dtms = reshape(best_dtms, 256, 256)
-	plotly()
+	@time best_dtms = dtm(data_points, grid_points, 15, 1)
+	best_dtms = reshape(best_dtms, s, s)
 	surface(-best_dtms)
 end
 
@@ -139,7 +156,7 @@ md"""# Closest Distance Persistence Diagrams"""
 
 # ╔═╡ d9a38345-f2da-457f-9182-6c2b6bf47079
 begin
-	nns_alpha_diag = ripserer(Cubical(nns), cutoff=0.1)
+	nns_alpha_diag = ripserer(Cubical(nns))
 	plot(nns_alpha_diag)
 end
 
@@ -148,7 +165,7 @@ md"""# KDE Persistence Diagram"""
 
 # ╔═╡ 42c1721b-7dea-4e4b-81a7-1435c3ad7314
 begin
-	kde_cub_diag = ripserer(Cubical(dens), cutoff=0.001)
+	kde_cub_diag = ripserer(Cubical(-dens))
 	plot(kde_cub_diag)
 end
 
@@ -157,9 +174,12 @@ md"""# DTM Persistence Diagram"""
 
 # ╔═╡ bc23c3a3-3136-48ef-8bf1-eb94c53097e7
 begin
-	dtm_cub_diag = ripserer(Cubical(best_dtms), cutoff=0.1)
+	@time dtm_cub_diag = ripserer(Cubical(best_dtms, threshold=1.0))
 	plot(dtm_cub_diag)
 end
+
+# ╔═╡ d71d610b-8742-45bb-be91-7489073a343e
+plot(plot(dtm_cub_diag), plot(circ_pers))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -181,7 +201,7 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.2"
 manifest_format = "2.0"
 project_hash = "bb2d21533950577748ad2114d7cff8c7b35a58a1"
 
@@ -1621,14 +1641,16 @@ version = "1.4.1+1"
 # ╠═856a8245-c69f-43e1-a376-7f65eaa79db0
 # ╠═3e65ec0f-90bb-46a5-ab05-0e6e451d2bf1
 # ╠═fd8f5a40-01fe-45c0-80cf-6402b3c024e0
+# ╠═3de0e84f-d669-4f20-9c4d-55cf33ae4c3c
 # ╠═f4f873e4-17ab-4edb-8da7-ec8cab7e7098
+# ╠═f329f356-1700-45e4-b709-ebf18d1eb26a
+# ╠═b5a203b2-ce98-4b26-b069-e4514dbb6c00
 # ╠═292b6a54-ef86-4d9c-9251-9b7903f91727
 # ╠═407f5787-478d-413e-9d74-bf40f2672a2b
-# ╠═7f2b5105-068a-47f2-8bfd-c67cbcd45072
+# ╠═c132fe43-6fbf-4874-8222-87855313cb8e
+# ╠═4086923a-75d3-4a96-b28c-e3701cf6db2d
 # ╠═b52f7118-3b25-40b9-bb06-ae11ae87eab9
-# ╠═57726e0c-5423-4fc6-9c3d-bf2be51a94c6
 # ╠═7773e936-be5c-4d80-a53c-e119a89a7806
-# ╠═31c7ffe8-3917-44db-84af-d84ffdaa5c4d
 # ╠═1e8e7084-cf33-4290-b6e8-9952a5d10a87
 # ╠═db92f8e3-524f-4f08-b051-9b03e74e5046
 # ╠═96074f04-fd92-45b0-a8d4-ca1361219e3e
@@ -1638,5 +1660,6 @@ version = "1.4.1+1"
 # ╠═42c1721b-7dea-4e4b-81a7-1435c3ad7314
 # ╠═aecf69f4-9047-4e4b-ac46-5a6a9e46641b
 # ╠═bc23c3a3-3136-48ef-8bf1-eb94c53097e7
+# ╠═d71d610b-8742-45bb-be91-7489073a343e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
