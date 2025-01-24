@@ -18,13 +18,7 @@ begin
 	using LinearAlgebra;
 	Pkg.add("BenchmarkTools")
 	using BenchmarkTools;
-	using DataFrames
-end
-
-# ╔═╡ fbf1b521-d562-4ce4-89db-e41201f014e4
-begin
-	Pkg.add("CSV")
-	using CSV
+	using DataFrames;
 end
 
 # ╔═╡ 337ae826-ef76-4cc6-86e6-a89af22615c8
@@ -32,8 +26,8 @@ md"""# Experiment"""
 
 # ╔═╡ 9e1a71a1-5673-4f88-9a1d-53f5fd6bd956
 begin
-	num_points_lst = [100, 300, 700, 1000]
-	grid_sizes_lst = [50, 100, 150, 200]
+	num_points_lst = [1000, 3000, 5000]
+	grid_sizes_lst = [100, 150, 200]
 end
 
 # ╔═╡ faf47d88-39dd-4996-abee-e64113d0e773
@@ -93,70 +87,33 @@ md"""## Runtime Data Gathering"""
 
 # ╔═╡ 327a70f9-e5af-42cc-a285-db87b2b50960
 begin
-	my_funcs_runtime_lst = []
+	nn_info_lst = []
+	kde_info_lst = []
+	dtm_info_lst = []
 	for data_size in num_points_lst
-		curr_dataset = myCircle(data_size - 50, 50)
+		curr_dataset = myCircle(data_size - 100, 100)
 		for grid_size in grid_sizes_lst
 			curr_grid = myGrid(grid_size)
 			
 			nn_info = @benchmark myNN($curr_grid, $curr_dataset)
-			nn_details = ("myNN", data_size, grid_size, minimum(nn_info).time, maximum(nn_info).time, median(nn_info).time, mean(nn_info).time)
+			nn_details = (data_size, grid_size, minimum(nn_info).time, maximum(nn_info).time, median(nn_info).time, mean(nn_info).time)
 			
 			kde_info = @benchmark myMultiKDE($curr_dataset, $curr_grid)
-			kde_details = ("myKDE", data_size, grid_size, minimum(kde_info).time, maximum(kde_info).time, median(kde_info).time, mean(kde_info).time)
+			kde_details = (data_size, grid_size, minimum(kde_info).time, maximum(kde_info).time, median(kde_info).time, mean(kde_info).time)
+
+			dtm_optimal = Int(floor(sqrt(data_size)))
+			dtm_info = @benchmark myDTM($curr_grid, $curr_dataset, $dtm_optimal, 2)
+			dtm_details = (data_size, grid_size, minimum(dtm_info).time, maximum(dtm_info).time, median(dtm_info).time, mean(dtm_info).time)
 			
-			dtm_info = @benchmark myDTM($curr_grid, $curr_dataset, 20, 2)
-			dtm_details = ("myDTM", data_size, grid_size, minimum(dtm_info).time, maximum(dtm_info).time, median(dtm_info).time, mean(dtm_info).time)
-			
-			push!(my_funcs_runtime_lst, nn_details)
-			push!(my_funcs_runtime_lst, kde_details)
-			push!(my_funcs_runtime_lst, dtm_details)
+			push!(nn_info_lst, nn_details)
+			push!(kde_info_lst, kde_details)
+			push!(dtm_info_lst, dtm_details)
 		end
 	end
 end
 
-# ╔═╡ a978672a-8d7d-402d-a1c8-8c6fc8563c34
-my_funcs_runtime_lst
-
-# ╔═╡ db93f704-a7d5-4545-8941-530c51720ddc
-begin
-	rtda_runtime_data = []
-	for dataset_size in num_points_lst
-		curr_dataset = myCircle(dataset_size - 100, 100)
-		curr_dataset = [[x...] for x in curr_dataset]
-		
-		rtda_nn_info = @benchmark rtda.dist($curr_dataset)
-		rtda_nn_details = ("rtdaNN", dataset_size, 0, minimum(rtda_nn_info).time, maximum(rtda_nn_info).time, median(rtda_nn_info).time, mean(rtda_nn_info).time)
-		
-		rtda_dtm_info = @benchmark rtda.dtm($curr_dataset, 0.1)
-		rtda_dtm_details = ("rtdaDTM", dataset_size, 0, minimum(rtda_dtm_info).time, maximum(rtda_dtm_info).time, median(rtda_dtm_info).time, mean(rtda_dtm_info).time)
-		
-		rtda_mom_info = @benchmark rtda.momdist($curr_dataset, 100)
-		rtda_mom_details = ("rtdaMOM", dataset_size, 0, minimum(rtda_mom_info).time, maximum(rtda_mom_info).time, median(rtda_mom_info).time, mean(rtda_mom_info).time)
-
-		push!(rtda_runtime_data, rtda_nn_details)
-		push!(rtda_runtime_data, rtda_dtm_details)
-		push!(rtda_runtime_data, rtda_mom_details)
-	end
-end
-
-# ╔═╡ 80e2fc85-de42-40cd-9922-726813f56c80
-my_funcs_df = DataFrame(func=String[], data_size=Int64[], grid_size=Int64[], min_runtime=Float64[], max_runtime=Float64[], med_runtime=Float64[], mean_runtime=Float64[])
-
-# ╔═╡ 00bbd116-6cac-4245-bdd9-790c70021521
-my_funcs_df
-
-# ╔═╡ 76bd652a-1190-4ade-aec2-d74e99da1b08
-rtda_funcs_df = DataFrame(func=String[], data_size=Int64[], grid_size=Int64[], min_runtime=Float64[], max_runtime=Float64[], med_runtime=Float64[], mean_runtime=Float64[])
-
-# ╔═╡ 44ba70f3-677b-4091-9ff9-14a2e10f6065
-rtda_funcs_df
-
-# ╔═╡ d1b8502e-1405-4a16-8c3f-4ba2149d0611
-CSV.write("my_funcs_data.csv", my_funcs_df)
-
-# ╔═╡ 884deacc-a08a-4b29-9dea-51093a54659a
-CSV.write("rtda_funcs_data.csv", rtda_funcs_df)
+# ╔═╡ 857dda28-00c2-42f6-a072-2f82782a8e61
+nn_info_lst
 
 # ╔═╡ Cell order:
 # ╠═e718db6f-c78d-4df3-a9fd-7ca71adbb45f
@@ -171,12 +128,4 @@ CSV.write("rtda_funcs_data.csv", rtda_funcs_df)
 # ╠═0d504b54-afa4-4e27-bc90-66d9b4c16595
 # ╠═8acffc55-f015-4cc6-a01c-6b523b01ae74
 # ╠═327a70f9-e5af-42cc-a285-db87b2b50960
-# ╠═a978672a-8d7d-402d-a1c8-8c6fc8563c34
-# ╠═db93f704-a7d5-4545-8941-530c51720ddc
-# ╠═80e2fc85-de42-40cd-9922-726813f56c80
-# ╠═00bbd116-6cac-4245-bdd9-790c70021521
-# ╠═76bd652a-1190-4ade-aec2-d74e99da1b08
-# ╠═44ba70f3-677b-4091-9ff9-14a2e10f6065
-# ╠═fbf1b521-d562-4ce4-89db-e41201f014e4
-# ╠═d1b8502e-1405-4a16-8c3f-4ba2149d0611
-# ╠═884deacc-a08a-4b29-9dea-51093a54659a
+# ╠═857dda28-00c2-42f6-a072-2f82782a8e61
