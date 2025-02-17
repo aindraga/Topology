@@ -42,9 +42,9 @@ function myCircle(circ_points, noise_points)
 end
 
 @everywhere function processSublist(sublist)
-    shuffled_list = shuffleobs(sublist)
-    curr_tree = KDTree(reduce(hcat, shuffled_list), leafsize=1)
-    return (curr_tree, shuffled_list)
+    # shuffled_list = shuffleobs(sublist)
+    curr_tree = KDTree(reduce(hcat, sublist), leafsize=1)
+    return (curr_tree, sublist)
 end
 
 function parallelmomdist(dataset)
@@ -54,37 +54,41 @@ function parallelmomdist(dataset)
 
     # Send Folds To Each Worker
     batch_size = dataset_length / count_workers |> floor |> Int
-    
+
     futures = Vector{Any}(undef, count_workers)
     @sync for i in 1:count_workers
         start = (batch_size * (i - 1)) + 1
         if i != count_workers
-            curr_lst = dataset[start: batch_size * i]
+            curr_lst = dataset[start:batch_size*i]
             curr_future = @spawnat current_workers[i] processSublist(curr_lst)
             futures[i] = curr_future
-            continue    
+            continue
         end
-    
+
         curr_lst = dataset[start:length(dataset)]
         curr_future = @spawnat current_workers[i] processSublist(curr_lst)
         futures[i] = curr_future
     end
 
     foreach(wait, futures)
-    return "finished"
+    println("finished")
 
     return DistanceFunction(
-        k = 1,
-        trees = trees,
-        X = Xq,
-        type = "momdist",
-        Q = count_workers
-    ) 
+        k=1,
+        trees=trees,
+        X=Xq,
+        type="momdist",
+        Q=count_workers
+    )
 end
 
 
 # 1,000 Points Results
 first_circ = myCircle(750_000, 250_000)
+
+
+
+
 
 parallel_time = @timed parallelmomdist(first_circ)
 mt_time = @timed rtda.momdist(first_circ, 4)
@@ -94,3 +98,6 @@ println("Parallel Approach: ", parallel_time)
 
 mt_time = mt_time.time - mt_time.compile_time
 println("Multi-Threading Approach: ", mt_time)
+
+
+Xq = collect(fold[2] for fold in kfolds(shuffleobs(first_circ), 4))
