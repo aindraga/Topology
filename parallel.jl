@@ -5,6 +5,21 @@ using BenchmarkTools
 @everywhere using ParallelDataTransfer
 using ThreadsX
 using Parameters
+import RobustTDA as rtda
+
+
+max_tasks = Sys.CPU_THREADS
+    
+add_workers = 0
+current_workers = []
+count_procs = nprocs()
+
+if max_tasks > count_procs
+    add_workers = max_tasks - (count_procs - 1)
+    addprocs(add_workers)
+end
+
+println("Number of Workers: $(nworkers())")
 
 @with_kw mutable struct DistanceFunction
     k::Integer
@@ -33,18 +48,6 @@ end
 end
 
 function parallelmomdist(dataset)
-    # Add workers if needed
-    max_tasks = Sys.CPU_THREADS
-    
-    add_workers = 0
-    current_workers = []
-    count_procs = nprocs()
-    
-    if max_tasks > count_procs
-        add_workers = max_tasks - count_procs
-        current_workers = addprocs(add_workers)
-    end
-
     dataset_length = length(dataset)
     current_workers = workers()
     count_workers = length(current_workers)
@@ -52,26 +55,23 @@ function parallelmomdist(dataset)
     # Send Folds To Each Worker
     batch_size = dataset_length / count_workers |> floor |> Int
     
-    for i in 1:count_workers
+    futures = Vector{Any}(undef, count_workers)
+    @sync for i in 1:count_workers
         start = (batch_size * (i - 1)) + 1
         if i != count_workers
             curr_lst = dataset[start: batch_size * i]
-            sendto(current_workers[i], sublist=curr_lst)
+            curr_future = @spawnat current_workers[i] processSublist(curr_lst)
+            futures[i] = curr_future
             continue    
         end
     
         curr_lst = dataset[start:length(dataset)]
-        sendto(current_workers[i], sublist=curr_lst)
+        curr_future = @spawnat current_workers[i] processSublist(curr_lst)
+        futures[i] = curr_future
     end
 
-    futures = [@spawnat current_workers[i] processSublist(sublist) for i in
-                                                                1:count_workers]
-    results = fetch.(futures)
-
-    Xq = [item[2] for item in results]
-    trees = [item[1] for item in results]
-
-    return nothing
+    foreach(wait, futures)
+    return "finished"
 
     return DistanceFunction(
         k = 1,
@@ -80,37 +80,17 @@ function parallelmomdist(dataset)
         type = "momdist",
         Q = count_workers
     ) 
-
-end
-
-function momdist(
-    data::AbstractVector{T},
-    Q = 0
-) where {T<:Union{Tuple{Vararg{<:Real}},Vector{<:Real}}}
-
-    if Q < 1
-        println("Invalid value of Q supplied. Defaulting to Q = n_obs / 5 = $Q")
-        Q = ceil(Int16, length(data) / 5)
-    end
-
-    Xq = ThreadsX.collect(fold[2] for fold in kfolds(shuffleobs(data), Q))
-
-    trees = ThreadsX.collect(KDTree(reduce(hcat, xq), leafsize=1) for xq in Xq)
-
-    return nothing
-    DistanceFunction(
-        k = 1,
-        trees = trees,
-        X = Xq,
-        type = "momdist",
-        Q = Q
-    )
 end
 
 
 # 1,000 Points Results
-first_circ = myCircle(75000, 25000)
+first_circ = myCircle(750_000, 250_000)
 
-@btime momdist(first_circ, 3)
-@btime parallelmomdist(first_circ)
+parallel_time = @timed parallelmomdist(first_circ)
+mt_time = @timed rtda.momdist(first_circ, 4)
 
+parallel_time = parallel_time.time - parallel_time.compile_time
+println("Parallel Approach: ", parallel_time)
+
+mt_time = mt_time.time - mt_time.compile_time
+println("Multi-Threading Approach: ", mt_time)
