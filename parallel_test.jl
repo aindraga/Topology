@@ -70,8 +70,8 @@ b_serial_res = @btimed serial_tree(X);
 b_parallel_res = @btimed parallel_tree(X);
 
 begin
-    @info "Raw Time:\n $((; serial_res..., value="serial"))"
-    @info "Raw Time:\n $((; parallel_res..., value="parallel"))"
-    @info "Benchmark Time:\n $((; b_serial_res..., value="serial"))"
-    @info "Benchmark Time:\n $((; b_parallel_res..., value="parallel"))"
+    @info "Raw Time:\n $((; serial_res..., value="serial"))\n\n"
+    @info "Raw Time:\n $((; parallel_res..., value="parallel"))\n\n"
+    @info "Benchmark Time:\n $((; b_serial_res..., value="serial"))\n\n"
+    @info "Benchmark Time:\n $((; b_parallel_res..., value="parallel"))\n\n"
 end
