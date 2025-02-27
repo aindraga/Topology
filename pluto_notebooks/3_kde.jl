@@ -1,209 +1,213 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.4
 
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 00553c00-ae74-11ef-1b43-a54f52b2fc8b
+# ╔═╡ 068dfef0-9866-11ef-0b71-25f7ceb5f445
 begin
-	using LinearAlgebra
-	using Plots
-	using Statistics
-	using Distances
-	using Ripserer
+	using Plots;
+	using PlutoUI;
+	using Ripserer;
+	using ComputationalHomology;
+	using StaticArrays;
+	using KernelDensity;
 end
 
-# ╔═╡ 56847d3d-6089-4578-801c-f5ec41f0e2ca
-md""" # Task 1: Efficient Shortest Distance"""
+# ╔═╡ 8b663c55-daa1-4e0f-8509-14a91470c50b
+md"""# Import Statements"""
 
-# ╔═╡ 2997a43e-b387-4914-a6d5-ddb415e3d6ed
-function shortestDistances(eval_points, base_points)
-	dist_mat = pairwise(Euclidean(), eval_points, base_points)
-	return minimum(dist_mat, dims=2)
-end
+# ╔═╡ 330bba03-f87e-4909-9aaf-8edea311e1a1
+md"""### Sampling of 100 Random Points of a Circle"""
 
-# ╔═╡ 856a8245-c69f-43e1-a376-7f65eaa79db0
-md""" ## Example with circle """
-
-# ╔═╡ 3e65ec0f-90bb-46a5-ab05-0e6e451d2bf1
+# ╔═╡ 3ed4a47f-0002-4871-94bf-57a12a1486ca
 begin
 	radius = 1.5
 	center = (2.0, 3.0)
-	angles = 2π * rand(500)
-	circ_x_points = center[1] .+ radius * cos.(angles)
-	circ_y_points = center[2] .+ radius * sin.(angles)
-	x_points = [circ_x_points; rand(200) .* 4]
-	y_points = [circ_y_points; rand(200) .* 4 .+ 1]
+	angles = 2π * rand(100)
+	x_points = center[1] .+ radius * cos.(angles)
+	y_points = center[2] .+ radius * sin.(angles)
+	x_points = [x_points; rand(100) .* 4]
+	y_points = [y_points; rand(100) .* 4 .+ 1]
 	scatter(x_points, y_points, aspect_ratio=1)
 end
 
-# ╔═╡ fd8f5a40-01fe-45c0-80cf-6402b3c024e0
+# ╔═╡ 723e2f1f-4a1a-4e3f-86da-0b15c1150f9b
+md"""### Create a Rips Complex From This Dataset"""
+
+# ╔═╡ 0e01c25b-d546-43ad-9408-d16745d39ac4
+md"""##### From an intuitive sense, when constructing a persistance diagram of a dataset that is randomly sampled from a circle, we should see 100 components born initially at the beginning and them die fairly quickly to create a single $H_0$ homological feature (connected component). This means, it should be a straight line of $H_0$ points in the diagram and have a single isolated point at the top, indicating the single homological feature left at the end. For the $H_1$ homological feature (loops), we should see that there is only a single one, the circle that the points create. This should persist for a significant period of time as the points and their orietation should make it difficult for this feature to disappear quickly."""
+
+# ╔═╡ 1ee4744b-1b55-4f02-8623-8aa999b8c59f
+dataset = [(x_points[i], y_points[i]) for i in 1:length(x_points)]
+
+# ╔═╡ 08093bcd-15f1-404d-bdb9-5f406a2a6675
+rips_diagram = ripserer(dataset, cutoff=0.1)
+
+# ╔═╡ cd94554f-8301-46d1-b751-eeb57eeda892
+plot(rips_diagram)
+
+# ╔═╡ 54f73416-7f46-4db3-89a4-7b4131810b34
+md""" ### Create an Alpha Complex From This Dataset"""
+
+# ╔═╡ ebc4d61e-383e-4642-944f-e91217b6101d
+md""" ##### The Alpha complex can be viewed as an approximation of the Cech complex. This uses the concept of Delaunay triangles to create simplicies."""
+
+# ╔═╡ 0576f791-1d5a-4904-bddf-e26b7108f5ca
+alpha_comp = Alpha(dataset)
+
+# ╔═╡ d571c884-2d02-4a94-b01a-1b2217db8804
+alpha_diagram = ripserer(alpha_comp, cutoff=0.1)
+
+# ╔═╡ 041f0a2a-caf4-473b-b0f4-0a9c744fb9a6
+plot(alpha_diagram)
+
+# ╔═╡ 43f77738-7db1-4ba3-935a-2854e4eff3da
+md"""### Generate a Multivariate KDE From the Current Circle Dataset"""
+
+# ╔═╡ cdfca8bd-2298-49b6-81c9-d25e5969a8fe
 begin
-	s = 512
-	data_points = [x_points y_points]
-	x_grid = [x for x in range(0, 5, s) for i in range(0, 5, s)]
-	y_grid = [y for i in range(0, 5, s) for y in range(0, 5, s)]
-	grid_points = [x_grid y_grid]
+	for_kde_dataset = [collect(item) for item in dataset]
+	for_kde_dataset = Array(hcat(for_kde_dataset...)')
 end
 
-# ╔═╡ 3de0e84f-d669-4f20-9c4d-55cf33ae4c3c
-circ_data_points = [circ_x_points circ_y_points]
+# ╔═╡ de9913e1-a345-4576-9f59-c3a8df3d3605
+circle_kde = kde(for_kde_dataset)
 
-# ╔═╡ f4f873e4-17ab-4edb-8da7-ec8cab7e7098
-begin
-	@time nns = shortestDistances(grid_points', data_points')
-	nns = reshape(nns, s, s)
-	# plotly()
-	gr()
-	surface(nns)
+# ╔═╡ fc52deaa-a1cc-46cb-8f55-516f3fdd2da0
+kde_x_range, kde_y_range, kde_z = circle_kde.x, circle_kde.y, circle_kde.density
+
+# ╔═╡ 6e4e3da5-2bed-49f2-9bbd-ed2166bd5bcb
+let
+	plotly()	
+	surface(kde_x_range, kde_y_range, kde_z)
 end
 
-# ╔═╡ f329f356-1700-45e4-b709-ebf18d1eb26a
+# ╔═╡ 0a65326d-388f-466b-a4bb-b770cedca5d0
+md"""##### Create Persistence Diagram for this KDE"""
+
+# ╔═╡ 8a1e8fa6-4101-4f6d-b262-138d8771ae64
 begin
-	@time circ_nns = shortestDistances(grid_points', circ_data_points')
-	circ_nns = reshape(circ_nns, s, s)
-	plotly()
-	#gr()
-	surface(circ_nns)
+	kde_x = [x for x in kde_x_range]
+	kde_y = [y for y in kde_y_range]
 end
 
-# ╔═╡ b5a203b2-ce98-4b26-b069-e4514dbb6c00
-begin
-	circ_pers = ripserer(Cubical(circ_nns, threshold=2))
-	plot(circ_pers)
-end
+# ╔═╡ aa919c69-ef83-4299-872a-a69a6cdcbf11
+kde_dataset = [[kde_x[i], kde_y[j], kde_z[i, j]] for i in 1:256 for j in 1:256]
 
-# ╔═╡ 292b6a54-ef86-4d9c-9251-9b7903f91727
-md"""# Task 2: Efficient Multi-Variate KDE"""
+# ╔═╡ c232a10f-6eb8-4493-b034-7965c7b0d18f
+adjusted_kde_dataset = Array(hcat(kde_dataset...)')
 
-# ╔═╡ 407f5787-478d-413e-9d74-bf40f2672a2b
-function multikde(data::Matrix{Float64}, points, kernel_func::Function, H::Union{Matrix{Float64}, Nothing} = nothing)
+# ╔═╡ 0fa3238e-2f61-4eb1-b570-0b70c2f8141c
+typeof(adjusted_kde_dataset)
 
-	n, d = size(data)
-	if H === nothing
-		sigmas = std(data, dims=1)
-		factor = (4 / (d + 2))^(1 / (d + 4)) * n^(-1 / (d + 4))
-		H = zeros(d, d)
-		diags = sigmas * factor
-		H[diagind(H)] = diags
+# ╔═╡ 149ab050-d771-4a5e-a877-c08b8c812fa0
+adjusted_kde_dataset[1, :]
+
+# ╔═╡ c12b8abe-9910-4b7d-bf6b-f5a7a7581dde
+kde_cubical_complex = Cubical(-kde_z)
+
+# ╔═╡ 4eadd3c0-6aec-4ea8-ab9b-3acc3b9ac38d
+kde_cube_diagram = ripserer(kde_cubical_complex, dim_max=1)
+
+# ╔═╡ 98e99129-856b-4a6b-b0b0-a1800a8fe13a
+plot(kde_cube_diagram)
+
+# ╔═╡ 3ffcdb04-7ec7-4984-a2f9-392c95cf81ac
+md""" ##### Should have an $H_2$ feature. Something wrong here."""
+
+# ╔═╡ 75f55973-2934-48d2-a271-3690a2d09f9e
+md"""### KDE Implementation"""
+
+# ╔═╡ 3b40a886-d898-4a39-a30d-0dd778aca6fc
+md""" Multi Variate"""
+
+# ╔═╡ be9a1d1a-19ba-45c4-abc7-f7c6092cbeff
+function kdeMine(x_points, bandwidth, k, data)
+	kde_vals = zeros(length(x_points))
+	for i in 1:length(x_points)
+		current_x = x_points[i]
+		num = 
+		kde_vals[i] = sum(k(current_x .- data)) / (length(x_points) * bandwidth)
 	end
-	
-	if size(H) != (d, d)
-		return false
-	end
-	
-	if all(eigvals(H) .>= 0) == false
-		return false
-	end
 
-	det_H = det(H)
-	inv_H = inv(H)
-	
-	densities = zeros(size(points)[1])
-	normalization = 1 / (sqrt(det_H) * (2π)^(d / 2))
-	data = Array(data')
-	for (i, x) in enumerate(eachrow(points))
-		data_comp = x .- data
-		u_mat = inv_H * data_comp
-		kern_aspect = kernel_func.(eachcol(u_mat))
-		sum_kernel = sum(kern_aspect)
-		densities[i] = normalization * sum_kernel / n
-	end
+	return kde_vals
+end	
 
-	return densities
+# ╔═╡ 1b6f8283-1a5e-4878-82c9-04a982f5617c
+function gaussian_kernel(x)
+	return (1 / sqrt(2 * π)) * exp.(-0.5 * (x .^ 2))
 end
 
-# ╔═╡ 4086923a-75d3-4a96-b28c-e3701cf6db2d
-function gaussian_kernel(u)
-    return exp(-0.5 * dot(u, u))
-end
+# ╔═╡ 24df1bce-a57b-4240-b59e-75e5073915e5
+dummy_data = randn(1000)
 
-# ╔═╡ c132fe43-6fbf-4874-8222-87855313cb8e
-begin
-	#Kh(r; h) = exp(-r/h)
-	#kernel_matrix = pairwise(Euclidean(), grid_points', data_points') .|> (x -> Kh(x; h=0.3))
-	dens = multikde(data_points, grid_points, gaussian_kernel)
-	dens = reshape(dens, (s, s))
-	surface(dens)
-end
+# ╔═╡ 2bf08e1f-bed0-4df9-a87f-5b597cb920e7
+bw = 0.3
 
-# ╔═╡ b52f7118-3b25-40b9-bb06-ae11ae87eab9
-md""" ## Example with Circle"""
+# ╔═╡ 72dc525c-4025-4dcf-86cd-10b1e75ddba3
+x_vals = LinRange(minimum(dummy_data) - 1, maximum(dummy_data) + 1, 1000)
 
-# ╔═╡ 7773e936-be5c-4d80-a53c-e119a89a7806
-md"""# Task 3: Efficient Distance-To-Measure"""
+# ╔═╡ 568937eb-0b47-48b5-8dc0-f9bde37a2f71
+my_kde_vals = kdeMine(x_vals, bw, gaussian_kernel, dummy_data)
 
-# ╔═╡ 1e8e7084-cf33-4290-b6e8-9952a5d10a87
-function dtm(eval_points, base_points, nn, r)
-	dist_mat = pairwise(Euclidean(), eval_points', base_points')
-	small = sortperm(dist_mat, dims=1)[1:nn, :]
-	vals = dist_mat[small] .^ r
-	return mean(vals, dims=1) .^ (1 / r)
-end
+# ╔═╡ 9045994d-6e9c-44a4-9d0f-6abc29f670b1
+plot(my_kde_vals)
 
-# ╔═╡ db92f8e3-524f-4f08-b051-9b03e74e5046
-md"""## Example with Circle"""
-
-# ╔═╡ 96074f04-fd92-45b0-a8d4-ca1361219e3e
-begin
-	@time best_dtms = dtm(data_points, grid_points, 15, 1)
-	best_dtms = reshape(best_dtms, s, s)
-	surface(-best_dtms)
-end
-
-# ╔═╡ f63ead09-327c-4b1a-8d13-a90b7f49cf23
-md"""# Closest Distance Persistence Diagrams"""
-
-# ╔═╡ d9a38345-f2da-457f-9182-6c2b6bf47079
-begin
-	nns_alpha_diag = ripserer(Cubical(nns))
-	plot(nns_alpha_diag)
-end
-
-# ╔═╡ af92981f-2166-4385-9586-c7f6e3d26245
-md"""# KDE Persistence Diagram"""
-
-# ╔═╡ 42c1721b-7dea-4e4b-81a7-1435c3ad7314
-begin
-	kde_cub_diag = ripserer(Cubical(-dens))
-	plot(kde_cub_diag)
-end
-
-# ╔═╡ aecf69f4-9047-4e4b-ac46-5a6a9e46641b
-md"""# DTM Persistence Diagram"""
-
-# ╔═╡ bc23c3a3-3136-48ef-8bf1-eb94c53097e7
-begin
-	@time dtm_cub_diag = ripserer(Cubical(best_dtms, threshold=1.0))
-	plot(dtm_cub_diag)
-end
-
-# ╔═╡ d71d610b-8742-45bb-be91-7489073a343e
-plot(plot(dtm_cub_diag), plot(circ_pers))
+# ╔═╡ b8dd88ae-6aa2-40b8-8a81-50fcd63ab080
+md""" ##### KDEs are a non parametric way of estimating the pdf of a set of data. We do not assume anything about the underlying data distribution. In the general shape (given by the kernel function) around a certain point, we want to see how dense the probability is there (our estimate). We use a smoothing factor to increase/decrease the size of the neighborhood we search. The bigger the neighborhood, the more general our prediction and vice versa. To get an understanding of density in a general area, we use the entire dataset as our baseline for our understanding of this."""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+KernelDensity = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Ripserer = "aa79e827-bd0b-42a8-9f10-2b302677a641"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-Distances = "~0.10.12"
+KernelDensity = "~0.6.9"
 Plots = "~1.40.9"
+PlutoUI = "~0.7.52"
 Ripserer = "~0.16.13"
-Statistics = "~1.11.1"
+StaticArrays = "~1.9.8"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.2"
+julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "bb2d21533950577748ad2114d7cff8c7b35a58a1"
+project_hash = "8b9195336b3c8b4e6fc2bab0602ebef490e0147f"
+
+[[deps.AbstractFFTs]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
+uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
+version = "1.5.0"
+weakdeps = ["ChainRulesCore", "Test"]
+
+    [deps.AbstractFFTs.extensions]
+    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+    AbstractFFTsTestExt = "Test"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "91bd53c39b9cbfb5ef4b015e8b582d344532bd0a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.2.0"
+
+[[deps.Adapt]]
+deps = ["LinearAlgebra", "Requires"]
+git-tree-sha1 = "50c3c56a52972d78e8be9fd135bfb91c9574c140"
+uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+version = "4.1.1"
+weakdeps = ["StaticArrays"]
+
+    [deps.Adapt.extensions]
+    AdaptStaticArraysExt = "StaticArrays"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -224,6 +228,12 @@ version = "0.4.0"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
+
+[[deps.AxisAlgorithms]]
+deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
+git-tree-sha1 = "01b8ccb13d68535d73d2b0c23e39bd23155fb712"
+uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
+version = "1.1.0"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -263,6 +273,16 @@ version = "0.10.8"
     RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
     SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
     StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+
+[[deps.ChainRulesCore]]
+deps = ["Compat", "LinearAlgebra"]
+git-tree-sha1 = "3e4b134270b372f2ed4d4d0e936aabaefc1802bc"
+uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+version = "1.25.0"
+weakdeps = ["SparseArrays"]
+
+    [deps.ChainRulesCore.extensions]
+    ChainRulesCoreSparseArraysExt = "SparseArrays"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -367,14 +387,11 @@ deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
 git-tree-sha1 = "c7e3a542b999843086e2f29dac96a618c105be1d"
 uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 version = "0.10.12"
+weakdeps = ["ChainRulesCore", "SparseArrays"]
 
     [deps.Distances.extensions]
     DistancesChainRulesCoreExt = "ChainRulesCore"
     DistancesSparseArraysExt = "SparseArrays"
-
-    [deps.Distances.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -437,6 +454,18 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "466d45dc38e15794ec7d5d63ec03d776a9aff36e"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.4+1"
+
+[[deps.FFTW]]
+deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
+git-tree-sha1 = "4820348781ae578893311153d69049a93d05f39d"
+uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+version = "1.8.0"
+
+[[deps.FFTW_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "4d81ed14783ec49ce9f2e168208a12ce1815aa25"
+uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
+version = "3.3.10+1"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -559,15 +588,49 @@ git-tree-sha1 = "b1c2585431c382e3fe5805874bda6aea90a95de9"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.25"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.3"
+
 [[deps.Inflate]]
 git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.5"
 
+[[deps.IntelOpenMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
+git-tree-sha1 = "10bd689145d2c3b2a9844005d01087cc1194e79e"
+uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
+version = "2024.2.1+0"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 version = "1.11.0"
+
+[[deps.Interpolations]]
+deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
+git-tree-sha1 = "88a101217d7cb38a7b481ccd50d21876e1d1b0e0"
+uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+version = "0.15.1"
+weakdeps = ["Unitful"]
+
+    [deps.Interpolations.extensions]
+    InterpolationsUnitfulExt = "Unitful"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "630b497eafcc20001bba38a4651b327dcfc491d2"
@@ -607,6 +670,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "25ee0be4d43d0269027024d75a24c24d6c6e590c"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.0.4+0"
+
+[[deps.KernelDensity]]
+deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
+git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
+uuid = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
+version = "0.6.9"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -652,6 +721,11 @@ version = "0.16.5"
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
+
+[[deps.LazyArtifacts]]
+deps = ["Artifacts", "Pkg"]
+uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+version = "1.11.0"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -761,6 +835,17 @@ git-tree-sha1 = "f02b56007b064fbfddb4c9cd60161b6dd0f40df3"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.1.0"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
+[[deps.MKL_jll]]
+deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
+git-tree-sha1 = "f046ccd0c6db2832a9f639e2c669c6fe867e5f4f"
+uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
+version = "2024.2.0+0"
+
 [[deps.MLJModelInterface]]
 deps = ["Random", "ScientificTypesBase", "StatisticalTraits"]
 git-tree-sha1 = "ceaff6618408d0e412619321ae43b33b40c1a733"
@@ -823,6 +908,15 @@ version = "1.0.2"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
+
+[[deps.OffsetArrays]]
+git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
+uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+version = "1.14.1"
+weakdeps = ["Adapt"]
+
+    [deps.OffsetArrays.extensions]
+    OffsetArraysAdaptExt = "Adapt"
 
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -950,6 +1044,12 @@ version = "1.40.9"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "e47cd150dbe0443c3a3651bc5b9cbd5576ab75b7"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.52"
+
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
@@ -1041,6 +1141,16 @@ version = "1.11.0"
 deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 version = "1.11.0"
+
+[[deps.Ratios]]
+deps = ["Requires"]
+git-tree-sha1 = "1342a47bf3260ee108163042310d26f2be5ec90b"
+uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
+version = "0.4.5"
+weakdeps = ["FixedPointNumbers"]
+
+    [deps.Ratios.extensions]
+    RatiosFixedPointNumbersExt = "FixedPointNumbers"
 
 [[deps.RecipesBase]]
 deps = ["PrecompileTools"]
@@ -1156,12 +1266,10 @@ deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_j
 git-tree-sha1 = "2f5d4697f21388cbe1ff299430dd169ef97d7e14"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.4.0"
+weakdeps = ["ChainRulesCore"]
 
     [deps.SpecialFunctions.extensions]
     SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
-
-    [deps.SpecialFunctions.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 
 [[deps.StableRNGs]]
 deps = ["Random"]
@@ -1174,14 +1282,11 @@ deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
 git-tree-sha1 = "777657803913ffc7e8cc20f0fd04b634f871af8f"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
 version = "1.9.8"
+weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]
     StaticArraysChainRulesCoreExt = "ChainRulesCore"
     StaticArraysStatisticsExt = "Statistics"
-
-    [deps.StaticArrays.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.StaticArraysCore]]
 git-tree-sha1 = "192954ef1208c7019899fbf8049e717f92959682"
@@ -1287,6 +1392,11 @@ git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
 
+[[deps.Tricks]]
+git-tree-sha1 = "7822b97e99a1672bfb1b49b668a6d46d58d8cbcb"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.9"
+
 [[deps.TupleTools]]
 git-tree-sha1 = "41e43b9dc950775eac654b9f845c839cd2f1821e"
 uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
@@ -1354,6 +1464,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "93f43ab61b16ddfb2fd3bb13b3ce241cafb0e6c9"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.31.0+0"
+
+[[deps.WoodburyMatrices]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "c1a7aa6219628fcd757dede0ca95e245c5cd9511"
+uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
+version = "1.0.0"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
@@ -1610,6 +1726,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.59.0+0"
 
+[[deps.oneTBB_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "7d0ea0f4895ef2f5cb83645fa689e52cb55cf493"
+uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
+version = "2021.12.0+0"
+
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
@@ -1635,31 +1757,44 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═00553c00-ae74-11ef-1b43-a54f52b2fc8b
-# ╠═56847d3d-6089-4578-801c-f5ec41f0e2ca
-# ╠═2997a43e-b387-4914-a6d5-ddb415e3d6ed
-# ╠═856a8245-c69f-43e1-a376-7f65eaa79db0
-# ╠═3e65ec0f-90bb-46a5-ab05-0e6e451d2bf1
-# ╠═fd8f5a40-01fe-45c0-80cf-6402b3c024e0
-# ╠═3de0e84f-d669-4f20-9c4d-55cf33ae4c3c
-# ╠═f4f873e4-17ab-4edb-8da7-ec8cab7e7098
-# ╠═f329f356-1700-45e4-b709-ebf18d1eb26a
-# ╠═b5a203b2-ce98-4b26-b069-e4514dbb6c00
-# ╠═292b6a54-ef86-4d9c-9251-9b7903f91727
-# ╠═407f5787-478d-413e-9d74-bf40f2672a2b
-# ╠═c132fe43-6fbf-4874-8222-87855313cb8e
-# ╠═4086923a-75d3-4a96-b28c-e3701cf6db2d
-# ╠═b52f7118-3b25-40b9-bb06-ae11ae87eab9
-# ╠═7773e936-be5c-4d80-a53c-e119a89a7806
-# ╠═1e8e7084-cf33-4290-b6e8-9952a5d10a87
-# ╠═db92f8e3-524f-4f08-b051-9b03e74e5046
-# ╠═96074f04-fd92-45b0-a8d4-ca1361219e3e
-# ╠═f63ead09-327c-4b1a-8d13-a90b7f49cf23
-# ╠═d9a38345-f2da-457f-9182-6c2b6bf47079
-# ╠═af92981f-2166-4385-9586-c7f6e3d26245
-# ╠═42c1721b-7dea-4e4b-81a7-1435c3ad7314
-# ╠═aecf69f4-9047-4e4b-ac46-5a6a9e46641b
-# ╠═bc23c3a3-3136-48ef-8bf1-eb94c53097e7
-# ╠═d71d610b-8742-45bb-be91-7489073a343e
+# ╠═8b663c55-daa1-4e0f-8509-14a91470c50b
+# ╠═068dfef0-9866-11ef-0b71-25f7ceb5f445
+# ╠═330bba03-f87e-4909-9aaf-8edea311e1a1
+# ╠═3ed4a47f-0002-4871-94bf-57a12a1486ca
+# ╠═723e2f1f-4a1a-4e3f-86da-0b15c1150f9b
+# ╠═0e01c25b-d546-43ad-9408-d16745d39ac4
+# ╠═1ee4744b-1b55-4f02-8623-8aa999b8c59f
+# ╠═08093bcd-15f1-404d-bdb9-5f406a2a6675
+# ╠═cd94554f-8301-46d1-b751-eeb57eeda892
+# ╠═54f73416-7f46-4db3-89a4-7b4131810b34
+# ╠═ebc4d61e-383e-4642-944f-e91217b6101d
+# ╠═0576f791-1d5a-4904-bddf-e26b7108f5ca
+# ╠═d571c884-2d02-4a94-b01a-1b2217db8804
+# ╠═041f0a2a-caf4-473b-b0f4-0a9c744fb9a6
+# ╠═43f77738-7db1-4ba3-935a-2854e4eff3da
+# ╠═cdfca8bd-2298-49b6-81c9-d25e5969a8fe
+# ╠═de9913e1-a345-4576-9f59-c3a8df3d3605
+# ╠═fc52deaa-a1cc-46cb-8f55-516f3fdd2da0
+# ╠═6e4e3da5-2bed-49f2-9bbd-ed2166bd5bcb
+# ╠═0a65326d-388f-466b-a4bb-b770cedca5d0
+# ╠═8a1e8fa6-4101-4f6d-b262-138d8771ae64
+# ╠═aa919c69-ef83-4299-872a-a69a6cdcbf11
+# ╠═c232a10f-6eb8-4493-b034-7965c7b0d18f
+# ╠═0fa3238e-2f61-4eb1-b570-0b70c2f8141c
+# ╠═149ab050-d771-4a5e-a877-c08b8c812fa0
+# ╠═c12b8abe-9910-4b7d-bf6b-f5a7a7581dde
+# ╠═4eadd3c0-6aec-4ea8-ab9b-3acc3b9ac38d
+# ╠═98e99129-856b-4a6b-b0b0-a1800a8fe13a
+# ╠═3ffcdb04-7ec7-4984-a2f9-392c95cf81ac
+# ╠═75f55973-2934-48d2-a271-3690a2d09f9e
+# ╠═3b40a886-d898-4a39-a30d-0dd778aca6fc
+# ╠═be9a1d1a-19ba-45c4-abc7-f7c6092cbeff
+# ╠═1b6f8283-1a5e-4878-82c9-04a982f5617c
+# ╠═24df1bce-a57b-4240-b59e-75e5073915e5
+# ╠═2bf08e1f-bed0-4df9-a87f-5b597cb920e7
+# ╠═72dc525c-4025-4dcf-86cd-10b1e75ddba3
+# ╠═568937eb-0b47-48b5-8dc0-f9bde37a2f71
+# ╠═9045994d-6e9c-44a4-9d0f-6abc29f670b1
+# ╠═b8dd88ae-6aa2-40b8-8a81-50fcd63ab080
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
