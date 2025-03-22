@@ -1,9 +1,9 @@
-import RobustTDA as rtda
-using RobustTDA: DistanceFunction
 using BenchmarkTools
-using NearestNeighbors
+using RobustTDA
+using Distributed
+using CSV
+using DataFrames
 
-# Dataset Generation
 function myCircle(circ_points, noise_points)
 	radius = 1.0
 	center = (0.0, 0.0)
@@ -16,56 +16,58 @@ function myCircle(circ_points, noise_points)
 	return all_points
 end
 
-function my_dtm(
-    data::AbstractVector{T},
-    m::Real
-) where {T<:Union{Tuple{Vararg{<:Real}},Vector{<:Real}}}
+max_tasks = Sys.CPU_THREADS
+add_workers = 0
+current_workers = []
+count_procs = nprocs()
 
-    tree = KDTree(reduce(hcat, data), leafsize = 1)
+if max_tasks > count_procs
+    add_workers = max_tasks - (count_procs - 1)
+    addprocs(add_workers)
+end
+println("Number of Workers: $(nworkers())")
 
-    return DistanceFunction(
-        k = floor(Int, m * length(data)),
-        trees = [tree],
-        X = [data],
-        type = "dtm",
-        Q = 1
-    )
+@everywhere using RobustTDA
+
+function getResults(data_size)
+    split_points = (data_size / 2) |> Int
+	curr_data = myCircle(split_points, split_points)
+	nn_res = @benchmark fit($curr_data, dist($curr_data))
+	dtm_res = @benchmark fit($curr_data, dtm($curr_data, 0.1))
+	mom_res = @benchmark fit($curr_data, momdist($curr_data, nworkers()))
+	pmom_res = @benchmark parallel_fit($curr_data, parallel_momdist($curr_data))
+	nn_res = mean(nn_res).time
+	dtm_res = mean(dtm_res).time
+	mom_res = mean(mom_res).time
+	pmom_res = mean(pmom_res).time
+	return [nn_res, dtm_res, mom_res, pmom_res, data_size]
 end
 
-function my_dist(
-    data::AbstractVector{T}
-) where {T<:Union{Tuple{Vararg{<:Real}},Vector{<:Real}}}
+df = DataFrame(NN=Float64[], DTM=Float64[], MoM=Float64[], pMoM=Float64[], data_size=Int64[])
 
-    Xq = [data]
+# 1,000 Data Points
+println("Starting 1K")
+push!(df, getResults(1_000))
+println("Finished 1K")
 
-    trees = [BruteTree(reduce(hcat, xq), leafsize = 1) for xq in Xq]
+# 10,000 Data Points
+println("Starting 10K")
+push!(df, getResults(10_000))
+println("Finished 10K")
 
-    return DistanceFunction(
-        k = 1,
-        trees = trees,
-        X = Xq,
-        type = "dist",
-        Q = 1
-    )
-end
+# 25,000 Data Points
+println("Starting 25K")
+push!(df, getResults(25_000))
+println("Finished 25K")
 
-small_data = myCircle(10, 10)
-rtda.dist(small_data)
-my_dist(small_data)
-rtda.dtm(small_data, 0.1)
-my_dtm(small_data, 0.1)
+# 50,000 Data Points
+println("Starting 50K")
+push!(df, getResults(50_000))
+println("Finished 50K")
 
+# 100,000 Data Points
+println("Starting 100K")
+push!(df, getResults(100_000))
+println("Finished 100K")
 
-curr_data = myCircle(50_000, 50_000)
-
-kd_nn = @btimed rtda.dist(curr_data)
-brute_nn = @btimed my_dist(curr_data)
-
-kd_dtm = @btimed my_dtm(curr_data, 20)
-brute_dtm = @btimed rtda.dtm(curr_data, 20)
-
-println("KDTree NN Function: $(kd_nn.time)")
-println("BruteTree NN Function: $(brute_nn.time)")
-
-println("KDTree DTM Function: $(kd_dtm.time)")
-println("BruteTree DTM Function: $(brute_dtm.time)")
+CSV.write("rtda.csv", df)

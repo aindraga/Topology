@@ -1,9 +1,8 @@
 # Imports
-using Pkg
 using BenchmarkTools
-import RobustTDA as rtda
 using Distances
-Pkg.instantiate()
+using DataFrames
+using CSV
 
 # Dataset Generation
 function myCircle(circ_points, noise_points)
@@ -47,34 +46,74 @@ function myDTM(eval_points, data_points, nns, r)
 	return vals
 end
 
-# Data Size 1,000, Grid Size 32x32
-curr_data = myCircle(500, 500)
-curr_grid = myGrid(32)
+function getResults(data_size, grid_size)
+	split_size = (data_size / 2) |> Int
+	curr_data = myCircle(split_size, split_size)
+	curr_grid = myGrid(grid_size)
+	nn_res = @benchmark myNN($curr_grid, $curr_data)
+	kde_res = @benchmark myMultiKDE($curr_data, $curr_grid)
+	dtm_res = @benchmark myDTM($curr_grid, $curr_data, 10, 2)
+	nn_time = mean(nn_res).time
+	kde_time = mean(kde_res).time
+	dtm_time = mean(dtm_res).time
+	return [nn_time, kde_time, dtm_time, data_size, grid_size]
+end
 
-nn_1k_32 = @benchmark myNN(curr_grid, curr_data)
-kde_1k_32 = @benchmark myMultiKDE(curr_data, curr_grid)
-dtm_1k_32 = @benchmark myDTM(curr_grid, curr_data, 20, 2)
+# 1,000 Data Points
+println("Starting 1K")
+res_1k_16g = getResults(1_000, 16)
+res_1k_32g = getResults(1_000, 32)
+res_1k_64g = getResults(1_000, 64)
+println("Finished 1K")
 
-println(nn_1k_32)
-println(kde_1k_32)
-println(dtm_1k_32)
+# 10,000 Data Points
+println("Starting 10K")
+res_10k_16g = getResults(10_000, 16)
+res_10k_32g = getResults(10_000, 32)
+res_10k_64g = getResults(10_000, 64)
+println("Finished 10K")
 
-curr_grid = myGrid(64)
+# 25,000 Data Points 
+println("Starting 25K")
+res_25k_16g = getResults(25_000, 16)
+res_25k_32g = getResults(25_000, 32)
+res_25k_64g = getResults(25_000, 64)
+println("Finished 25K")
 
-nn_1k_64 = @benchmark myNN(curr_grid, curr_data)
-kde_1k_64 = @benchmark myMultiKDE(curr_data, curr_grid)
-dtm_1k_64 = @benchmark myDTM(curr_grid, curr_data, 20, 2)
+# 50,000 Data Points
+println("Starting 50K")
+res_50k_16g = getResults(50_000, 16)
+res_50k_32g = getResults(50_000, 32)
+res_50k_64g = getResults(50_000, 64)
+println("Finished 50K")
 
-println(nn_1k_64)
-println(kde_1k_64)
-println(dtm_1k_64)
+# 100,000 Data Points
+println("Starting 100K")
+res_100k_16g = getResults(100_000, 16)
+res_100k_32g = getResults(100_000, 32)
+res_100k_64g = getResults(100_000, 64)
+println("Finished 100K")
 
-curr_grid = myGrid(128)
+df = DataFrame(NN=Float64[], KDE=Float64[], DTM=Float64[], data_size=Int64[], grid_size=Int64[])
 
-nn_1k_128 = @benchmark myNN(curr_grid, curr_data)
-kde_1k_128 = @benchmark myMultiKDE(curr_data, curr_grid)
-dtm_1k_128 = @benchmark myDTM(curr_grid, curr_data, 20, 2)
+push!(df, res_1k_16g)
+push!(df, res_1k_32g)
+push!(df, res_1k_64g)
 
-println(nn_1k_128)
-println(kde_1k_128)
-println(dtm_1k_128)
+push!(df, res_10k_16g)
+push!(df, res_10k_32g)
+push!(df, res_10k_64g)
+
+push!(df, res_25k_16g)
+push!(df, res_25k_32g)
+push!(df, res_25k_64g)
+
+push!(df, res_50k_16g)
+push!(df, res_50k_32g)
+push!(df, res_50k_64g)
+
+push!(df, res_100k_16g)
+push!(df, res_100k_32g)
+push!(df, res_100k_64g)
+
+CSV.write("ctda.csv", df)
