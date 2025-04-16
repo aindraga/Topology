@@ -16,6 +16,12 @@ function myCircle(circ_points, noise_points)
 	return all_points
 end
 
+function myGrid(s)
+	x_grid = y_grid = range(-2, 2, s)
+	grid_points = [[x, y] for x in x_grid for y in y_grid]
+	return grid_points
+end
+
 max_tasks = Sys.CPU_THREADS
 add_workers = 0
 current_workers = []
@@ -29,45 +35,61 @@ println("Number of Workers: $(nworkers())")
 
 @everywhere using RobustTDA
 
-function getResults(data_size)
+function getResults(data_size, grid_size)
     split_points = (data_size / 2) |> Int
 	curr_data = myCircle(split_points, split_points)
-	nn_res = @benchmark fit($curr_data, dist($curr_data))
-	dtm_res = @benchmark fit($curr_data, dtm($curr_data, 0.1))
-	mom_res = @benchmark fit($curr_data, momdist($curr_data, nworkers()))
-	pmom_res = @benchmark parallel_fit($curr_data, parallel_momdist($curr_data))
+	curr_grid = myGrid(grid_size)
+	nn_res = @benchmark fit($curr_grid, dist($curr_data))
+	dtm_res = @benchmark fit($curr_grid, dtm($curr_data, 0.1))
+	mom_res = @benchmark fit($curr_grid, momdist($curr_data, nworkers()))
+	pmom_res = @benchmark parallel_fit($curr_grid, parallel_momdist($curr_data))
 	nn_res = mean(nn_res).time
 	dtm_res = mean(dtm_res).time
 	mom_res = mean(mom_res).time
 	pmom_res = mean(pmom_res).time
-	return [nn_res, dtm_res, mom_res, pmom_res, data_size]
+	return [nn_res, dtm_res, mom_res, pmom_res, data_size, grid_size]
 end
 
-df = DataFrame(NN=Float64[], DTM=Float64[], MoM=Float64[], pMoM=Float64[], data_size=Int64[])
-
-# 1,000 Data Points
-println("Starting 1K")
-push!(df, getResults(1_000))
-println("Finished 1K")
+df = DataFrame(NN=Float64[], DTM=Float64[], MoM=Float64[], pMoM=Float64[], data_size=Int64[], grid_size=Int64[])
 
 # 10,000 Data Points
 println("Starting 10K")
-push!(df, getResults(10_000))
+push!(df, getResults(10_000, 16))
+push!(df, getResults(10_000, 32))
+push!(df, getResults(10_000, 48))
+push!(df, getResults(10_000, 64))
 println("Finished 10K")
 
-# 25,000 Data Points
-println("Starting 25K")
-push!(df, getResults(25_000))
-println("Finished 25K")
+# 20,000 Data Points
+println("Starting 20K")
+push!(df, getResults(20_000, 16))
+push!(df, getResults(20_000, 32))
+push!(df, getResults(20_000, 48))
+push!(df, getResults(20_000, 64))
+println("Finished 20K")
+
+# 30,000 Data Points
+println("Starting 30K")
+push!(df, getResults(30_000, 16))
+push!(df, getResults(30_000, 32))
+push!(df, getResults(30_000, 48))
+push!(df, getResults(30_000, 64))
+println("Finished 30K")
+
+# 40,000 Data Points
+println("Starting 40K")
+push!(df, getResults(40_000, 16))
+push!(df, getResults(40_000, 32))
+push!(df, getResults(40_000, 48))
+push!(df, getResults(40_000, 64))
+println("Finished 40K")
 
 # 50,000 Data Points
 println("Starting 50K")
-push!(df, getResults(50_000))
+push!(df, getResults(50_000, 16))
+push!(df, getResults(50_000, 32))
+push!(df, getResults(50_000, 48))
+push!(df, getResults(50_000, 64))
 println("Finished 50K")
-
-# 100,000 Data Points
-println("Starting 100K")
-push!(df, getResults(100_000))
-println("Finished 100K")
 
 CSV.write("rtda.csv", df)

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.4
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -12,187 +12,86 @@ begin
 end
 
 # ╔═╡ 3afcb862-c17d-48b6-910f-4f3912f71a6b
-df = CSV.File("ctda.csv") |> DataFrame
+df = CSV.File("julia_code/rtda.csv", types=Dict(
+    :NN => Float64,
+    :DTM => Float64,
+    :MoM => Float64,
+    :pMoM => Float64,
+    :data_size => Int,
+    :grid_size => Int)) |> DataFrame
 
 # ╔═╡ c4cb263f-8795-437f-aaa8-7a35dd1dc648
 begin
 	df.NN .= df.NN ./ 1_000_000
-	df.KDE .= df.KDE ./ 1_000_000
 	df.DTM .= df.DTM ./ 1_000_000
+	df.MoM .= df.MoM ./ 1_000_000
+	df.pMoM .= df.pMoM ./ 1_000_000
 end
 
 # ╔═╡ 6b2673dc-e345-4be0-bf8f-830f383c9771
 df
 
-# ╔═╡ bb82cc5d-6572-470d-9cef-175058a590fa
-grid64 = filter(:grid_size => x -> x == 64, df)
-
-# ╔═╡ d1c60b8e-77cb-4ec6-b346-efed80fb6647
-begin
-	plot(grid64.data_size, grid64.NN, label="Classic NN", title="Runtimes (Classic) Grid Size 64×64",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(grid64.data_size, grid64.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(grid64.data_size, grid64.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
-# ╔═╡ a0df47e4-d3ae-43ea-988e-d12e28693fdf
-grid32 = filter(:grid_size => x -> x == 32, df)
-
-# ╔═╡ fcc87298-d280-449f-b0f9-53a431538e22
-begin
-	plt = plot(grid32.data_size, grid32.NN, label="Classic NN", title="Runtimes (Classic) Grid Size 32×32",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(grid32.data_size, grid32.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(grid32.data_size, grid32.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
-# ╔═╡ cc8cfbb4-3761-4f0f-8971-05079b2540b8
-grid16 = filter(:grid_size => x -> x == 16, df)
-
-# ╔═╡ 0e30fabf-3378-477f-a9cc-85e52e0009dc
-begin
-	plot(grid16.data_size, grid16.NN, label="Classic NN", title="Runtimes (Classic) Grid Size 16×16",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(grid16.data_size, grid16.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(grid16.data_size, grid16.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
-# ╔═╡ fdf1b7f0-3a83-417e-8a23-f9172f629aea
-data_1k = filter(:data_size => x -> x == 1000, df)
-
-# ╔═╡ fde6bc60-faae-45d1-b04a-50d1617f0c7f
-begin
-	plot(data_1k.grid_size, data_1k.NN, label="Classic NN", title="Runtimes (Classic) Data Size 1,000",
-	     xlabel="Grid Size (n x n)", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(data_1k.grid_size, data_1k.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(data_1k.grid_size, data_1k.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
 # ╔═╡ 3dec5f61-1b08-456e-b3cd-4db9330b7c83
-data_10k = filter(:data_size => x -> x == 10_000, df)
-
-# ╔═╡ 88c997ae-a16f-4114-a3f7-c0161159de76
-begin
-	plot(data_10k.grid_size, data_10k.NN, label="Classic NN", title="Runtimes (Classic) Data Size 10,000",
-	     xlabel="Grid Size (n x n)", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(data_10k.grid_size, data_10k.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(data_10k.grid_size, data_10k.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
-# ╔═╡ bae6516d-b495-4699-bcbd-5de9b20d5574
-data_25k = filter(:data_size => x -> x == 25_000, df)
-
-# ╔═╡ bdb6cff6-32fb-4694-aadd-30e16a5eb966
-begin
-	plot(data_25k.grid_size, data_25k.NN, label="Classic NN", title="Runtimes (Classic) Data Size 25,000",
-	     xlabel="Grid Size (n x n)", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(data_25k.grid_size, data_25k.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(data_25k.grid_size, data_25k.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
-end
-
-# ╔═╡ a1f0095d-b341-4c4c-9071-2997af9308cb
 data_50k = filter(:data_size => x -> x == 50_000, df)
 
-# ╔═╡ 632f7d96-c1e9-4185-9b9f-9123686879a7
+# ╔═╡ 81105536-c6cc-42da-acb8-5a481d88a2e2
+grid_sizes = [16, 32, 48, 64]
+
+# ╔═╡ cc936782-646c-4714-87e4-0d08ffd767c1
+default(
+    legend=:topleft,
+    linewidth=2,
+    markershape=:circle,
+    markerstrokecolor=:auto,
+    markersize=4,
+    grid=true,
+    framestyle=:box,
+    guidefont=font(12, "Arial"),
+    tickfont=font(10, "Arial"),
+    legendfont=font(10, "Arial"),
+    titlefont=font(14, "Arial"),
+)
+
+# ╔═╡ e261bfe9-329e-4ae6-b293-f537d9853af0
 begin
-	plot(data_50k.grid_size, data_50k.NN, label="Classic NN", title="Runtimes (Classic) Data Size 50,000",
-	     xlabel="Grid Size (n x n)", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(data_50k.grid_size, data_50k.KDE, label="Classic KDE", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(data_50k.grid_size, data_50k.DTM, label="Classic DTM", linestyle=:dot, linewidth=2, markershape=:diamond)
+	gplot = plot(grid_sizes, data_50k.NN, label="NN", yscale=:log10, xlabel="Grid Size", title="Grid Size Scaling for Distance Functions (All)")
+	gplot = plot!(grid_sizes, data_50k.MoM, label="MoM (Serial)")
+	gplot = plot!(grid_sizes, data_50k.pMoM, label="MoM (Parallel)")
+	gplot = plot!(grid_sizes, data_50k.DTM, label="DTM")
 end
 
-# ╔═╡ 8ed25659-1d38-4974-a435-76a2a6f7f499
-data_100k = filter(:data_size => x -> x == 100_000, df)
-
-# ╔═╡ 038bc3f1-4e4e-4a08-b4b6-276c2593d15a
+# ╔═╡ 63e4ced7-c304-4cd6-a848-bd7d57770838
 begin
-	plot(data_100k.grid_size, data_100k.NN, label="Classic NN", title="Runtimes (Classic) Data Size 100,000",
-	     xlabel="Grid Size (n x n)", ylabel="Runtime (ms)", linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
+	g2plot = plot(grid_sizes, data_50k.NN, label="NN", yscale=:log10, xlabel="Grid Size", title="Grid Size Scaling for Distance Functions")
+	g2plot = plot!(grid_sizes, data_50k.MoM, label="MoM (Serial)")
+	g2plot = plot!(grid_sizes, data_50k.pMoM, label="MoM (Parallel)")
 end
 
-# ╔═╡ 865aaeb9-bd77-4f59-b92f-6bd894ef9d36
+# ╔═╡ c11a6189-d544-4393-8172-611ed851eb69
+gplots = [gplot, g2plot]
+
+# ╔═╡ ee758caf-8e33-4f36-84c7-dc0f39a5eaf4
+gbig_plot = plot(gplots..., layout=(1, 2), size=(1200, 400), xlabel="Grid Size")
+
+# ╔═╡ 7f29c637-f66c-4246-bdf9-c87b9fd6dfd6
+savefig(gbig_plot, "grid_scaling.png")
+
+# ╔═╡ 49d62765-20d7-478d-95f6-2b07e5840304
+dg_64 = filter(:grid_size => x -> x == 64, df)
+
+# ╔═╡ 5d506ee0-f9b0-44b0-899f-f20e4e374993
+data_sizes = [10_000, 20_000, 30_000, 40_000, 50_000]
+
+# ╔═╡ c448c004-b619-401c-954e-fced0833c8d0
 begin
-	df2 = CSV.File("rtda.csv") |> DataFrame
-	df2.NN .= df2.NN ./ 1_000_000
-	df2.DTM .= df2.DTM ./ 1_000_000
-	df2.MoM .= df2.MoM ./ 1_000_000
-	df2.pMoM .= df2.pMoM ./ 1_000_000
+	dplot = plot(data_sizes, dg_64.NN, label="NN", yscale=:log10, xlabel="Dataset Size", ylabel="Runtime (Log10 ms)", title="Dataset Size Scaling for Distance Functions", ylim=(1e0, 1e4))
+	dplot = plot!(data_sizes, dg_64.pMoM, label="MoM (Parallel)")
+	dplot = plot!(data_sizes, dg_64.MoM, label="MoM (Serial)")
+	dplot = plot!(data_sizes, dg_64.DTM, label="DTM")
 end
 
-# ╔═╡ 819db17d-77a2-4d7e-b9d3-3a317c2dbbe4
-df2
-
-# ╔═╡ 5be27917-a3ae-4e73-9b6c-10bd0ae75859
-begin
-	plot(df2.data_size, df2.NN, label="Robust NN", title="Runtimes (Robust)",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(df2.data_size, df2.DTM, label="Robust DTM", linestyle=:dash, linewidth=2, markershape=:rect)
-	plot!(df2.data_size, df2.MoM, label="Robust MoM", linestyle=:dot, linewidth=2, markershape=:diamond)
-	plot!(df2.data_size, df2.pMoM, label="Parallel MoM", linestyle=:dash, linewidth=2, markershape=:rect)
-end
-
-# ╔═╡ 009f6626-e48c-4ff8-abce-9565483cf0df
-begin
-	plot(df2.data_size, df2.MoM, label="Serial MoM", title="Robust MoM Runtimes (Parallel vs. Serial)",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-	
-	plot!(df2.data_size, df2.pMoM, label="Parallel MoM", linestyle=:dash, linewidth=2, markershape=:rect)
-end
-
-# ╔═╡ 937a1883-5c45-47bd-adba-2751994d553b
-begin
-	plot(grid16.data_size, grid16.NN, label="Classic NN Grid Size 16", title="Runtimes Comparison NN",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-
-	plot!(grid32.data_size, grid32.NN, label="Classical NN Grid Size 32", linestyle=:dash, linewidth=2, markershape=:utriangle)
-
-	plot!(grid64.data_size, grid64.NN, label="Classical NN Grid Size 64", linestyle=:dash, linewidth=2, markershape=:dtriangle)
-
-	plot!(df2.data_size, df2.NN, label="Robust NN", linestyle=:dash, linewidth=2, markershape=:rect)
-end
-
-# ╔═╡ d99ca3b2-804c-4155-b4c3-5b7894d81f37
-begin
-	plot(grid16.data_size, grid16.DTM, label="Classic DTM Grid Size 16", title="Runtimes Comparison DTM",
-	     xlabel="Number of Data Points", ylabel="Logscale Runtime (ms)", 
-	     yscale=:ln, linewidth=2, markershape=:circle, markerstrokewidth=1.5, 
-	     grid=true, framestyle=:box, legend=:bottomright, titlefontsize=12, guidefontsize=10, tickfontsize=9)
-
-	plot!(grid32.data_size, grid32.DTM, label="Classical DTM Grid Size 32", linestyle=:dash, linewidth=2, markershape=:utriangle)
-
-	plot!(grid64.data_size, grid64.DTM, label="Classical DTM Grid Size 64", linestyle=:dash, linewidth=2, markershape=:dtriangle)
-
-	plot!(df2.data_size, df2.DTM, label="Robust DTM", linestyle=:dash, linewidth=2, markershape=:rect)
-end
+# ╔═╡ 9cd61a37-1716-42df-b3ba-2079e5306865
+savefig(dplot, "dataset_scaling.png")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -211,7 +110,7 @@ Plots = "~1.40.9"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "6d68342d2fc2b1f49956a2d0de28da4920bc64c5"
 
@@ -783,7 +682,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -1459,27 +1358,17 @@ version = "1.4.1+2"
 # ╠═3afcb862-c17d-48b6-910f-4f3912f71a6b
 # ╠═c4cb263f-8795-437f-aaa8-7a35dd1dc648
 # ╠═6b2673dc-e345-4be0-bf8f-830f383c9771
-# ╠═bb82cc5d-6572-470d-9cef-175058a590fa
-# ╠═d1c60b8e-77cb-4ec6-b346-efed80fb6647
-# ╠═a0df47e4-d3ae-43ea-988e-d12e28693fdf
-# ╠═fcc87298-d280-449f-b0f9-53a431538e22
-# ╠═cc8cfbb4-3761-4f0f-8971-05079b2540b8
-# ╠═0e30fabf-3378-477f-a9cc-85e52e0009dc
-# ╠═fdf1b7f0-3a83-417e-8a23-f9172f629aea
-# ╠═fde6bc60-faae-45d1-b04a-50d1617f0c7f
 # ╠═3dec5f61-1b08-456e-b3cd-4db9330b7c83
-# ╠═88c997ae-a16f-4114-a3f7-c0161159de76
-# ╠═bae6516d-b495-4699-bcbd-5de9b20d5574
-# ╠═bdb6cff6-32fb-4694-aadd-30e16a5eb966
-# ╠═a1f0095d-b341-4c4c-9071-2997af9308cb
-# ╠═632f7d96-c1e9-4185-9b9f-9123686879a7
-# ╠═8ed25659-1d38-4974-a435-76a2a6f7f499
-# ╠═038bc3f1-4e4e-4a08-b4b6-276c2593d15a
-# ╠═865aaeb9-bd77-4f59-b92f-6bd894ef9d36
-# ╠═819db17d-77a2-4d7e-b9d3-3a317c2dbbe4
-# ╠═5be27917-a3ae-4e73-9b6c-10bd0ae75859
-# ╠═009f6626-e48c-4ff8-abce-9565483cf0df
-# ╠═937a1883-5c45-47bd-adba-2751994d553b
-# ╠═d99ca3b2-804c-4155-b4c3-5b7894d81f37
+# ╠═81105536-c6cc-42da-acb8-5a481d88a2e2
+# ╠═cc936782-646c-4714-87e4-0d08ffd767c1
+# ╠═e261bfe9-329e-4ae6-b293-f537d9853af0
+# ╠═63e4ced7-c304-4cd6-a848-bd7d57770838
+# ╠═c11a6189-d544-4393-8172-611ed851eb69
+# ╠═ee758caf-8e33-4f36-84c7-dc0f39a5eaf4
+# ╠═7f29c637-f66c-4246-bdf9-c87b9fd6dfd6
+# ╠═49d62765-20d7-478d-95f6-2b07e5840304
+# ╠═5d506ee0-f9b0-44b0-899f-f20e4e374993
+# ╠═c448c004-b619-401c-954e-fced0833c8d0
+# ╠═9cd61a37-1716-42df-b3ba-2079e5306865
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
